@@ -1,0 +1,35 @@
+spring:
+  datasource:
+    # The main app.yaml's datasource now points at the real, Dockerized SQL
+    # Server (see docker-compose.yml), which tests shouldn't depend on -
+    # tests get their own throwaway embedded H2 instead, auto-detected as
+    # "embedded" by Boot so spring.sql.init and spring.batch.jdbc.initialize-schema
+    # both default correctly without repeating those settings here too.
+    url: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1
+    driver-class-name: org.h2.Driver
+
+  sql:
+    init:
+      # BatchRepositoryConfig makes JobRepository JDBC-backed (real tables,
+      # not Spring Batch 6's default in-memory ResourcelessJobRepository) for
+      # every context, tests included - so BATCH_JOB_INSTANCE/... need to
+      # exist here too, from spring-batch-core's own bundled H2 script,
+      # alongside our schema.sql (the customer table). No test launches a job
+      # today, but this keeps one from breaking on missing tables later.
+      schema-locations:
+        - classpath:schema.sql
+        - classpath:org/springframework/batch/core/schema-h2.sql
+
+  batch:
+    job:
+      # Test classpath resources shadow src/main/resources/application.yaml
+      # entirely rather than merging with it, so this has to be repeated here
+      # too - otherwise Boot's own JobLauncherApplicationRunner would try to
+      # auto-launch the job during context startup with no JobParameters.
+      enabled: false
+
+app:
+  batch:
+    # Keep the context-load test fast and side-effect-free; don't launch the
+    # real job during test startup.
+    run-on-startup: false

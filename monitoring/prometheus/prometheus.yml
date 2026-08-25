@@ -1,0 +1,10 @@
+global:
+  scrape_interval: 5s
+
+scrape_configs:
+  - job_name: spring-batch
+    metrics_path: /actuator/prometheus
+    static_configs:
+      # host.docker.internal resolves to the Docker host from inside the
+      # container - the app itself runs on the host via mvnw, not in Docker.
+      - targets: ["host.docker.internal:8080"]

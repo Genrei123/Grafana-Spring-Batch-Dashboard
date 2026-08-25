@@ -1,0 +1,38 @@
+apiVersion: 1
+
+datasources:
+  - name: Prometheus
+    uid: prometheus
+    type: prometheus
+    access: proxy
+    url: http://prometheus:9090
+    isDefault: true
+    editable: true
+
+  - name: Tempo
+    uid: tempo
+    type: tempo
+    access: proxy
+    url: http://tempo:3200
+    editable: true
+
+  - name: MSSQL - Spring Batch
+    uid: mssql-springbatch
+    type: mssql
+    access: proxy
+    # Reaches the mssql service over the docker-compose network, not the
+    # host-published 1433 port the app itself connects through.
+    url: mssql:1433
+    database: master
+    user: sa
+    # Hardcoded on purpose: this is the throwaway local POC password (matches
+    # MSSQL_SA_PASSWORD's default in docker-compose.yml) - Grafana provisioning
+    # YAML doesn't reliably expand shell-style ${VAR:-default} fallbacks, so
+    # don't rely on interpolation here. If you change the DB password, update
+    # both places.
+    secureJsonData:
+      password: SpringBatch_2024!
+    jsonData:
+      encrypt: "false"
+      tlsSkipVerify: true
+    editable: true

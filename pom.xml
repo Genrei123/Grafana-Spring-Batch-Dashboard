@@ -1,0 +1,122 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+	<parent>
+		<groupId>org.springframework.boot</groupId>
+		<artifactId>spring-boot-starter-parent</artifactId>
+		<version>4.1.0</version>
+		<relativePath/> <!-- lookup parent from repository -->
+	</parent>
+	<groupId>com.spring-test</groupId>
+	<artifactId>spring-batch</artifactId>
+	<version>0.0.1-SNAPSHOT</version>
+	<name/>
+	<description/>
+	<url/>
+	<licenses>
+		<license/>
+	</licenses>
+	<developers>
+		<developer/>
+	</developers>
+	<scm>
+		<connection/>
+		<developerConnection/>
+		<tag/>
+		<url/>
+	</scm>
+	<properties>
+		<java.version>17</java.version>
+	</properties>
+	<dependencies>
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-web</artifactId>
+		</dependency>
+
+		<!-- Exposes the /actuator/* endpoints (health, info, metrics, etc.) used
+		     to inspect and monitor the running app - see application.yaml for the
+		     endpoint configuration and comments. -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-actuator</artifactId>
+		</dependency>
+
+		<!-- The customer-import job: reads a CSV, validates/writes rows, and lets
+		     us demonstrate a job succeeding vs. failing. -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-batch</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-jdbc</artifactId>
+		</dependency>
+
+		<!-- Real datasource: a Dockerized SQL Server (see docker-compose.yml's
+		     mssql service) that the Spring Batch metadata tables and the
+		     customer table actually live in, so Grafana's MSSQL data source
+		     can query BATCH_JOB_EXECUTION directly - see spring.datasource.*
+		     in application.yaml. -->
+		<dependency>
+			<groupId>com.microsoft.sqlserver</groupId>
+			<artifactId>mssql-jdbc</artifactId>
+			<scope>runtime</scope>
+		</dependency>
+
+		<!-- Embedded, in-memory database used ONLY by tests (see
+		     src/test/resources/application.yaml) - fast and self-contained,
+		     no Docker/SQL Server required to run the test suite. -->
+		<dependency>
+			<groupId>com.h2database</groupId>
+			<artifactId>h2</artifactId>
+			<scope>test</scope>
+		</dependency>
+
+		<!-- Boot 4.1's all-in-one OTel starter: Micrometer's tracing bridge, the
+		     OTLP exporter (see management.otlp.tracing.endpoint in
+		     application.yaml), AND - unlike wiring the raw micrometer-tracing/
+		     opentelemetry jars in by hand - the Boot autoconfiguration modules
+		     that actually register the io.micrometer.tracing.Tracer bean our
+		     code depends on. -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-opentelemetry</artifactId>
+		</dependency>
+		<!-- Prints each finished span to the console too. Only added so spans
+		     are visible in this walkthrough without needing Docker/a collector
+		     running; safe to drop once you're always pointed at a real backend.
+		     Both exporters run at once - see TracingConfig. -->
+		<dependency>
+			<groupId>io.opentelemetry</groupId>
+			<artifactId>opentelemetry-exporter-logging</artifactId>
+		</dependency>
+
+		<!-- Serves metrics in Prometheus' scrape format at /actuator/prometheus,
+		     e.g. batch_job_executions_total{job="importCustomerJob",status="FAILED"}.
+		     spring-boot-starter-actuator already brings in the metrics
+		     autoconfiguration itself; this just adds the Prometheus registry
+		     implementation for it to use. -->
+		<dependency>
+			<groupId>io.micrometer</groupId>
+			<artifactId>micrometer-registry-prometheus</artifactId>
+		</dependency>
+
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-batch-test</artifactId>
+			<scope>test</scope>
+		</dependency>
+	</dependencies>
+
+	<build>
+		<plugins>
+			<plugin>
+				<groupId>org.springframework.boot</groupId>
+				<artifactId>spring-boot-maven-plugin</artifactId>
+			</plugin>
+		</plugins>
+	</build>
+
+</project>

@@ -1,0 +1,121 @@
+spring:
+  application:
+    name: spring-batch
+
+  datasource:
+    # Dockerized SQL Server - see docker-compose.yml's mssql service. The app
+    # runs on the host via mvnw, so it reaches the container through its
+    # published port on localhost, not the docker-compose network. "master"
+    # is used directly rather than a dedicated database, to keep this POC to
+    # one docker-compose service with no separate DB-creation step.
+    url: jdbc:sqlserver://localhost:1433;databaseName=master;encrypt=false;trustServerCertificate=true
+    username: sa
+    # Matches MSSQL_SA_PASSWORD's default in docker-compose.yml - change both
+    # together if you override it.
+    password: ${DB_PASSWORD:SpringBatch_2024!}
+    driver-class-name: com.microsoft.sqlserver.jdbc.SQLServerDriver
+
+  sql:
+    init:
+      # Our datasource is a real, persistent SQL Server now, not an
+      # auto-detected embedded DB, so this needs to run explicitly
+      # ("always"). Boot's default schema-locations list is [schema.sql,
+      # schema-${platform}.sql] (both, not either/or), so just setting
+      # spring.sql.init.platform would still also run the generic
+      # H2-flavored schema.sql (with its "CREATE TABLE IF NOT EXISTS", which
+      # T-SQL doesn't support) against SQL Server and fail - schema.sql stays
+      # H2-only, used by tests. Spring Batch 6 / Boot 4.1 dropped the old
+      # spring.batch.jdbc.schema/initialize-schema properties entirely (see
+      # BatchRepositoryConfig), so our own idempotent copy of Spring Batch's
+      # schema-sqlserver.sql rides along here too, alongside the customer
+      # table's script.
+      mode: always
+      schema-locations:
+        - classpath:schema-sqlserver.sql
+        - classpath:db/batch-schema-sqlserver.sql
+
+  batch:
+    job:
+      # Spring Boot normally auto-launches every Job bean at startup via its
+      # own JobLauncherApplicationRunner. Turned off here so StartupJobRunner
+      # (which builds JobParameters explicitly, including simulateFailure) is
+      # the only thing launching it - avoids running the job twice.
+      enabled: false
+
+app:
+  batch:
+    # The one line to flip for the whole "make the job fail" demo - restart
+    # the app after changing this and StartupJobRunner picks it up.
+    simulate-failure: false
+    # Launch importCustomerJob once automatically when the app boots.
+    run-on-startup: true
+    # Where the reader loads rows from - swap for a different file/location
+    # without touching CustomerImportJobConfig.
+    customers-file: classpath:data/customers.csv
+    # Chunk = one transaction. All 3 rows commit together or none do - see
+    # what happens to /customers after a failed run.
+    chunk-size: 10
+
+  migration:
+    # How long MigrationTasklet sleeps to simulate a migration, for the
+    # POST /jobs/migrate/success and /jobs/migrate/failure POC endpoints -
+    # see MigrationJobConfig/MigrationController. Flip this instead of the
+    # code to change the demo's duration.
+    duration-ms: 15000
+
+management:
+  endpoints:
+    web:
+      exposure:
+        # Which actuator endpoints are reachable over HTTP (under /actuator/**).
+        # Only "health" and "info" are exposed by default - everything else
+        # (env, beans, metrics, mappings, ...) can leak internals, so it must be
+        # opted into explicitly. "*" exposes all of them; listed here individually
+        # so it's obvious what's turned on. Add/remove names as you explore.
+        include: health,info,metrics,env,beans,mappings,loggers,threaddump,heapdump,prometheus
+
+  endpoint:
+    health:
+      # How much detail /actuator/health returns:
+      #   never          - just {"status":"UP"} (default)
+      #   when-authorized - full details, but only to an authenticated/authorized caller
+      #   always         - full breakdown per health indicator (disk space, ping, etc.)
+      # "always" is fine for local learning; use "when-authorized" once this is
+      # reachable outside your machine, since it can reveal internal details.
+      show-details: always
+    shutdown:
+      # /actuator/shutdown lets a POST request stop the app. Off by default because
+      # it's obviously dangerous on anything reachable over a network. Left disabled
+      # here on purpose - flip to true only on a throwaway local instance.
+      enabled: false
+
+  info:
+    env:
+      enabled: true # let values under the "info:" block below show up at /actuator/info
+    java:
+      enabled: true # add JVM vendor/version details to /actuator/info
+    os:
+      enabled: true # add OS name/arch/version details to /actuator/info
+
+  # --- Distributed tracing / OpenTelemetry (OTel). Actuator tells you about
+  # ONE running instance right now (its health, its metrics); tracing tells
+  # you what happened during ONE specific run/request, step by step, which is
+  # what CustomerImportJobListener uses to record a span per job execution.
+  tracing:
+    sampling:
+      probability: 1.0 # 1.0 = trace every run (fine for local dev/learning; lower it in prod to cut volume/cost)
+  otlp:
+    tracing:
+      # OTLP/HTTP port a real collector listens on. No collector is running
+      # right now, so this exporter just logs connection warnings and drops
+      # spans - harmless. Point it at a real one when you have it, e.g.:
+      #   docker run -p 16686:16686 -p 4317:4317 -p 4318:4318 jaegertracing/all-in-one:latest
+      # then view traces at http://localhost:16686. Meanwhile
+      # opentelemetry-exporter-logging (see TracingConfig) prints every span
+      # to the console so you can see them without any of that.
+      endpoint: http://localhost:4318/v1/traces
+
+info:
+  app:
+    name: ${spring.application.name}
+    description: Minimal Spring Boot "Hello World" app, used to learn Actuator and OpenTelemetry
